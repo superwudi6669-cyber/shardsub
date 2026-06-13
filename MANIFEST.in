@@ -1,0 +1,4 @@
+include README.md
+include README.internal.md
+recursive-include model *
+global-exclude __pycache__ *.py[cod]

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shardsub"
+version = "0.1.0"
+description = "A hard-subtitle extraction library built on PaddleOCR."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [
+  { name = "admin" }
+]
+dependencies = [
+  "numpy==2.3.5",
+  "opencv-contrib-python==4.10.0.84",
+  "paddleocr==3.6.0",
+  "paddlex==3.6.1",
+]
+
+[tool.setuptools]
+include-package-data = true
+packages = ["shardsub"]
+
+[tool.setuptools.package-dir]
+shardsub = "."
+
+[tool.setuptools.package-data]
+shardsub = [
+  "README.md",
+  "README.internal.md",
+  "model/**/*.json",
+  "model/**/*.yml",
+  "model/**/*.pdiparams",
+  "model/**/*.md",
+  "model/**/.gitattributes",
+]

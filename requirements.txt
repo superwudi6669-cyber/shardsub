@@ -1,0 +1,5 @@
+numpy==2.3.5
+opencv-contrib-python==4.10.0.84
+paddleocr==3.6.0
+paddlex==3.6.1
+paddlepaddle-gpu==3.3.1
