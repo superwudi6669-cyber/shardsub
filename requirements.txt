@@ -1,5 +1,8 @@
-numpy==2.3.5
-opencv-contrib-python==4.10.0.84
-paddleocr==3.6.0
-paddlex==3.6.1
-paddlepaddle-gpu==3.3.1
+# Install paddle runtime separately based on your environment:
+#   CPU: paddlepaddle
+#   GPU: paddlepaddle-gpu
+numpy>=2.0,<3
+opencv-contrib-python>=4.10,<5
+paddleocr>=3.6,<4
+paddlex>=3.6,<4
+platformdirs>=4,<5

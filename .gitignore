@@ -7,8 +7,10 @@ __pycache__/
 Thumbs.db
 
 .cache/
+.pytest_cache/
 *.log
 
 dist/
 build/
 *.egg-info/
+model/

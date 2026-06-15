@@ -1,78 +1,71 @@
 # shardsub
 
-`shardsub` 是一个用于视频硬字幕提取的 Python 库。
+`shardsub` 是一个基于 PaddleOCR 的硬字幕提取库，目标是把视频字幕提取流程整理成可复用的 Python 包，而不是一次性的脚本集合。
 
-它围绕一条实用的 OCR 流水线组织实现，主要包括：
+它当前提供这几层能力：
 
-- 字幕带检测
-- 按帧采样 OCR
-- 字幕分段构建
+- 字幕区域检测
+- 按固定间隔抽帧 OCR
+- 帧级结果合并为字幕块
 - 本地规则清洗
-- 结构化结果输出
+- SRT / JSON / CSV 输出
 
-当前项目主要面向本地 Windows / Conda / PaddleOCR 环境使用，但核心实现已经整理成可复用的包结构。
+## 安装
 
-## 功能特性
+建议先安装与你机器匹配的 PaddlePaddle 运行时：
 
-- 支持单个视频提取
-- 支持批量视频提取
-- 批量模式下共享一次字幕带检测结果
-- 包内自带本地模型目录 `shardsub/model`
-- 支持可选图像预处理，默认关闭
-- 输出 SRT、JSON、CSV 等结构化结果
-- 核心包本身不依赖 CLI
+- CPU 环境：安装 `paddlepaddle`
+- GPU 环境：按你的 CUDA 版本安装对应的 `paddlepaddle-gpu`
 
-## 目录结构
+然后安装本项目：
 
-```text
-shardsub/
-  __init__.py
-  config.py
-  types.py
-  ocr_engine.py
-  video_io.py
-  image_ops.py
-  ocr_parser.py
-  similarity.py
-  band_detector.py
-  segment_builder.py
-  cleaner.py
-  writer.py
-  pipeline.py
-  model/
-    det/
-    rec/
+```bash
+pip install .
 ```
 
-## 运行依赖
+或直接从源码开发安装：
 
-建议环境：
+```bash
+pip install -e .
+```
 
-- Python 3.11
+当前核心依赖：
+
 - `paddleocr`
 - `paddlex`
-- `opencv-python`
-- 与本机设备匹配的 PaddlePaddle 运行时
+- `opencv-contrib-python`
+- `numpy`
+- `platformdirs`
 
-如果使用 GPU，请先安装与当前 CUDA 环境匹配的 PaddlePaddle GPU 版本。
+## 模型策略
 
-## 模型目录
+`shardsub` 不再把 OCR 模型文件打进包里。
 
-默认情况下，`shardsub` 使用包内模型目录：
+首次运行时，`OCREngine` 会通过 PaddleX 官方模型路径准备检测和识别模型，并复制到用户缓存目录：
 
-- `shardsub/model/det`
-- `shardsub/model/rec`
+```text
+<user-cache>/shardsub/models/
+  det/
+  rec/
+```
 
-默认模型名：
+默认模型：
 
 - `PP-OCRv5_server_det`
 - `PP-OCRv5_server_rec`
 
-如果模型目录里缺少必须文件，`OCREngine` 会自动从 PaddleX 提供的官方模型缓存路径复制到本地目录。
+默认设备是 `cpu`。如果你要用 GPU，请显式设置：
+
+```python
+from shardsub import ExtractorConfig
+
+config = ExtractorConfig()
+config.model.device = "gpu:0"
+```
 
 ## 快速开始
 
-### 1. 批量提取
+### 批量处理
 
 ```python
 from shardsub import ExtractorConfig, extract_subtitles
@@ -81,16 +74,15 @@ config = ExtractorConfig()
 
 results = extract_subtitles(
     [
-        r"E:\project\SHORT_drama\jianyji\v1\ocr\input\1.mp4",
-        r"E:\project\SHORT_drama\en_to_ch\input\video\4\2.mp4",
-        r"C:\Users\admin\Downloads\111.mp4",
+        "path/to/video_1.mp4",
+        "path/to/video_2.mp4",
     ],
-    output_dir=r"E:\project\SHORT_drama\jianyji\v1\ocr\output\demo_batch",
+    output_dir="output/demo_batch",
     config=config,
 )
 ```
 
-### 2. 单视频提取
+### 单视频处理
 
 ```python
 from shardsub import ExtractorConfig, SubtitleExtractor
@@ -99,19 +91,19 @@ config = ExtractorConfig()
 
 with SubtitleExtractor(config) as extractor:
     result = extractor.extract(
-        r"E:\project\SHORT_drama\jianyji\v1\ocr\input\1.mp4",
-        output_dir=r"E:\project\SHORT_drama\jianyji\v1\ocr\output\demo_single",
+        "path/to/video.mp4",
+        output_dir="output/demo_single",
     )
 ```
 
-### 3. 多视频复用同一条字幕带
+### 先检测字幕带，再复用到多个视频
 
 ```python
 from shardsub import ExtractorConfig, SubtitleExtractor
 
 video_paths = [
-    r"E:\project\SHORT_drama\jianyji\v1\ocr\input\1.mp4",
-    r"E:\project\SHORT_drama\en_to_ch\input\video\4\2.mp4",
+    "path/to/video_1.mp4",
+    "path/to/video_2.mp4",
 ]
 
 config = ExtractorConfig()
@@ -124,9 +116,7 @@ with SubtitleExtractor(config) as extractor:
 
 ## 可选图像预处理
 
-图像预处理逻辑放在 `image_ops.py` 中。
-
-默认不启用任何预处理。只有你明确设置 `config.image.mode` 时才会启用。
+预处理逻辑集中在 `image_ops.py`，默认全部关闭。只有明确设置 `config.image.mode` 时才会启用。
 
 ```python
 from shardsub import ExtractorConfig
@@ -135,7 +125,7 @@ config = ExtractorConfig()
 config.image.mode = "white_on_black"
 ```
 
-当前支持的模式：
+当前支持：
 
 - `origin`
 - `gray`
@@ -148,9 +138,9 @@ config.image.mode = "white_on_black"
 - `gray_bg_dim`
 - `outline_tophat`
 
-## 配置对象
+## 主要配置
 
-公开配置类型包括：
+对外公开的配置对象：
 
 - `ModelConfig`
 - `BandDetectConfig`
@@ -172,9 +162,23 @@ config.output.save_crop_images = True
 config.clean.keep_single_cjk_score = 0.80
 ```
 
+## 输出内容
+
+传入 `output_dir` 后，会输出：
+
+- `subtitle_band.json`
+- `subtitles.srt`
+- `raw_segments.json`
+- `llm_blocks.json`
+- `summary.json`
+- 可选 `raw_frames.csv`
+- 可选调试裁剪图
+
+当前 `subtitles.srt` 来自 `cleaned_segments`，`summary.subtitle_srt_source` 会明确标记这一点。
+
 ## 返回对象
 
-主要返回类型包括：
+主要返回类型：
 
 - `SubtitleBand`
 - `RawSegment`
@@ -193,38 +197,36 @@ config.clean.keep_single_cjk_score = 0.80
 - `summary`
 - `debug_frame_rows`
 
-## 输出文件
-
-当传入 `output_dir` 时，流水线会写出：
-
-- 批量根目录下的 `subtitle_band.json`
-- 每个视频自己的 `subtitles.srt`
-- 每个视频自己的 `raw_segments.json`
-- 每个视频自己的 `llm_blocks.json`
-- 每个视频自己的 `summary.json`
-- 可选的 `raw_frames.csv`
-- 可选的裁剪调试图片
-
-## 处理流程
+## 项目结构
 
 ```text
-视频
-  -> 字幕带检测
-  -> 抽样帧 OCR
-  -> 帧级 OCR 解析
-  -> 字幕块构建
-  -> 本地清洗
-  -> 输出 SRT / JSON / CSV
+shardsub/
+  src/
+    shardsub/
+      __init__.py
+      config.py
+      types.py
+      ocr_engine.py
+      video_io.py
+      image_ops.py
+      ocr_parser.py
+      similarity.py
+      band_detector.py
+      segment_builder.py
+      cleaner.py
+      writer.py
+      pipeline.py
+  tests/
 ```
 
 ## 说明
 
-- 这是一个以库为中心的实现，核心包本身不依赖 CLI。
-- 批量模式会先检测一次字幕带，然后把结果复用到整批视频。
-- 当前清洗逻辑会保留稳定的 `block_id`，并单独记录被删除的字幕块。
-- 默认写出的 `subtitles.srt` 来自 `cleaned_segments`。
+- 这是一个以库为中心的实现，不保留 CLI。
+- 批量模式会先检测一次字幕带，再复用到整批视频。
+- `block_id` 在清洗后保持稳定，不会重新编号。
+- 项目内部说明文档见 `README.internal.md`。
 
-## 对外 API
+## 公开 API
 
 ```python
 from shardsub import (
@@ -234,9 +236,3 @@ from shardsub import (
     extract_subtitles,
 )
 ```
-
-## 内部说明文档
-
-之前那份偏内部实现说明的文档已经保留为：
-
-`README.internal.md`

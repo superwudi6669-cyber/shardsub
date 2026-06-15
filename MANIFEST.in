@@ -1,4 +1,7 @@
 include README.md
-include README.internal.md
-recursive-include model *
+include LICENSE
+recursive-include src/shardsub *.py
+exclude README.internal.md
+prune model
+prune shardsub.egg-info
 global-exclude __pycache__ *.py[cod]
